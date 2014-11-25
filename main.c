@@ -10,18 +10,18 @@ void init_field(Hexagon** field, int L, int A, unsigned s)
 {
     int i,j,k = 0;
     
-    #pragma omp parallel for private(i, j)
+    #pragma omp parallel for private(i, j) shared(field, s, k)
     for (k = 0; k < L*A; k++)
     {
         i = k/L;
         j = k % L;
+        printf("%d %d %d\n", i ,j, k);
         field[i][j].bug = TRUE;
         field[i][j].seed = ((i + 1) * s + j) % RAND_MAX;
         field[i][j].lastUpdated = 0;
         field[i][j].whoWantsMore = -1;
         field[i][j].wantValue = -1.0;
     }
-
 }
 
 void init_bugs(Hexagon* bugs, Hexagon** field, int j, int L, int A, unsigned* s)
@@ -38,6 +38,7 @@ void init_bugs(Hexagon* bugs, Hexagon** field, int j, int L, int A, unsigned* s)
         field[x][y].bug = TRUE;
         bugs[i] = field[x][y];
     }
+    printf("BUG INIT");
 }
 
 void spawn(Hexagon** field, int L, int A, float pc, float pf, int nc, int nf)
@@ -60,18 +61,19 @@ void spawn(Hexagon** field, int L, int A, float pc, float pf, int nc, int nf)
         if (val <= pf)
             field[i][j].cold = nf;
     }
+    printf("FIRE INIT");
 }
 
 int main(int argc, char* argv[])
 {
-    int L = 100, A = 100;
+    int L = 10, A = 10;
     int j = 10;
     unsigned int s = 42;
     float C = 2;
     float tmin = 0.0, tmax = 100.0;
     float pc = 0.1, pf = 0.1;
     int nc = 2, nf = 2;
-    int T = 10;
+    int T = 1;
     int P = 4;
     int iter;
 
@@ -90,6 +92,7 @@ int main(int argc, char* argv[])
         field[i] = (Hexagon*) malloc(L*sizeof(Hexagon));
 
     init_field(field, L, A, s);
+    printf("ASDASD");
 
     bugs = (Hexagon*) malloc(j*sizeof(Hexagon));
     init_bugs(bugs, field, j, L, A, &s);
