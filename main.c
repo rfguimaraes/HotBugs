@@ -6,17 +6,17 @@
 #define TRUE 1
 #define FALSE 0
 
-void init_field(Hexagon** field, int L, int A, unsigned s)
+void init_field(Hexagon** field, int L, int A, unsigned s, int* sources)
 {
     int i,j,k = 0;
     
-    #pragma omp parallel for private(i, j) shared(field, s, k)
+    #pragma omp parallel for private(i, j) shared(field, s, k) schedule(dynamic)
     for (k = 0; k < L*A; k++)
     {
         i = k/L;
         j = k % L;
         printf("%d %d %d\n", i ,j, k);
-        field[i][j].bug = TRUE;
+        field[i][j].bug = FALSE;
         field[i][j].seed = ((i + 1) * s + j) % RAND_MAX;
         field[i][j].lastUpdated = 0;
         field[i][j].whoWantsMore = -1;
@@ -24,28 +24,28 @@ void init_field(Hexagon** field, int L, int A, unsigned s)
     }
 }
 
-void init_bugs(Hexagon* bugs, Hexagon** field, int j, int L, int A, unsigned* s)
+void init_bugs(int* bugs, Hexagon** field, int j, int L, int A, unsigned* s)
 {
     int x, y, i = 0;
-    #pragma omp parellel for private(x, y)
+    #pragma omp parellel for private(x, y) shared(field) schedule(dynamic)
     for (i = 0; i < j; i++) 
     {
         do
         {
             x = rand_r(s) % L; 
             y = rand_r(s) % A; 
-        } while (field[x][y].bug);
+        } while (field[x][y].bug == TRUE);
         field[x][y].bug = TRUE;
-        bugs[i] = field[x][y];
+        bugs[i] = x*L + y;
     }
-    printf("BUG INIT");
 }
 
-void spawn(Hexagon** field, int L, int A, float pc, float pf, int nc, int nf)
+void spawn(Hexagon** field, int L, int A, float pc, float pf, int nc, int nf, int* sources, int bugs)
 {
     float val;
     int i, j, k;
-    #pragma omp parallel for private(i, j, val)
+    int offset = bugs;
+    #pragma omp parallel for private(i, j, val) schedule(dynamic)
     for (k = 0; k < L*A; k++)
     {
         i = k/L;
@@ -60,8 +60,27 @@ void spawn(Hexagon** field, int L, int A, float pc, float pf, int nc, int nf)
         val = (1.0*rand_r(&field[i][j].seed)) / RAND_MAX;
         if (val <= pf)
             field[i][j].cold = nf;
+        if (field[i][j].heat || field[i][j].cold)
+            sources[offset++] = k; 
     }
+    #pragma omp single
+    sources[offset] = -1;
     printf("FIRE INIT");
+}
+
+void calc_bug_temps(Hexagon** field, int L, int A, int sources, int j, float C)
+{
+    int iter;
+    int reader = 0;
+
+    for (iter = 0; iter < j; i++)
+    {
+        while (sources[reader] != -1)
+        {
+            CALCULATIONS
+            reader++;
+        }
+    }
 }
 
 int main(int argc, char* argv[])
@@ -69,7 +88,7 @@ int main(int argc, char* argv[])
     int L = 10, A = 10;
     int j = 10;
     unsigned int s = 42;
-    float C = 2;
+    float C = 2.0;
     float tmin = 0.0, tmax = 100.0;
     float pc = 0.1, pf = 0.1;
     int nc = 2, nf = 2;
@@ -79,34 +98,34 @@ int main(int argc, char* argv[])
 
     int i, x, y;
     
-    Hexagon* bugs;
+    int* sources;
     Hexagon** field;
 
 
     srand(s);
 
     field = (Hexagon**) malloc(A*sizeof(Hexagon*));
+    sources = (int*) malloc((L*A + 1)*sizeof(int));
 
     #pragma omp parallel for
     for (i = 0; i < A; i++)
         field[i] = (Hexagon*) malloc(L*sizeof(Hexagon));
 
-    init_field(field, L, A, s);
+    init_field(field, L, A, s, sources);
     printf("ASDASD");
 
-    bugs = (Hexagon*) malloc(j*sizeof(Hexagon));
-    init_bugs(bugs, field, j, L, A, &s);
+    init_bugs(sources, field, j, L, A, &s);
     
-    for (iter = 0; iter < T; i++)
+    for (iter = 0; iter < T; iter++)
     {
-        spawn(field, L, A, pc, pf, nc, nf);
+        spawn(field, L, A, pc, pf, nc, nf, sources, j);
     }
 
     #pragma omp parallel for
     for (i = 0; i < A; i++)
         free(field[i]);
     free(field);
-    free(bugs);
+    free(sources);
 
     return 0;
 
