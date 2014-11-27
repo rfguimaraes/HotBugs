@@ -4,10 +4,14 @@
 q = x + (z + (z&1)) / 2
 r = z*/
 
-void cube_to_even_r(int x, int y, int z, int* i, int *j)
+void cube_to_even_r(int* p, int* i, int *j)
 {
-    *j = x + (z + (z&1)) / 2;
-    *i = z;
+    #pragma omp parallel sections shared(c0, c1, c2)
+    {
+        *j = p[0] + (p[2] + (p[2]&1)) / 2;
+        #pragma omp section
+        *i = p[2];
+    }
 }
 
 /*# convert even-r offset to cube
@@ -15,23 +19,25 @@ x = q - (r + (r&1)) / 2
 z = r
 y = -x-z*/
 
-void even_r_to_cube(int* x, int* y, int* z, int i, int j)
+void even_r_to_cube(int* p, int i, int j)
 {
-    *x = j - (i + (i&1)) / 2;
-    *z = i;
-    *y = -(*x) - (*z);
-}
-
-float cube_euclidian(int x0, int y0, int z0, int x1, int y1, int z1)
-{
-    int c0, c1, c2;
     #pragma omp parallel sections shared(c0, c1, c2)
     {
-        c0 = (x0 - x1) * (x0 - x1);
+        p[0] = j - (i + (i&1)) / 2;
         #pragma omp section
-        c1 = (y0 - y1) * (y0 - y1);
-        #pragma omp section
-        c2 = (z0 - z1) * (z0 - z1);
+        p[2] = i;
     }
-    return sqrt(c0 + c1 + c2)
+    p[1] = -p[0] - p[2];
+}
+
+float sq_cube_euclidian(int* p0, int* p1)
+{
+    float result;
+    int i;
+    #pragma omp parallel for reduction(+:result)
+    for (i = 0; i < 3; i++)
+    {
+        result += ((p0[i] - p1[i]) * (p0[i] - p1[i]));
+    }
+    return result;
 }

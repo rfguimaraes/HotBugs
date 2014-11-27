@@ -6,6 +6,8 @@
 #define TRUE 1
 #define FALSE 0
 
+void calc_hex_temp(int hex, Hexagon** field, int* sources, int L, float C, int turn);
+
 void init_field(Hexagon** field, int L, int A, unsigned s, int* sources)
 {
     int i,j,k = 0;
@@ -60,26 +62,54 @@ void spawn(Hexagon** field, int L, int A, float pc, float pf, int nc, int nf, in
         val = (1.0*rand_r(&field[i][j].seed)) / RAND_MAX;
         if (val <= pf)
             field[i][j].cold = nf;
-        if (field[i][j].heat || field[i][j].cold)
-            sources[offset++] = k; 
+        if (!(field[i][j].heat && field[i][j].cold)) 
+            if (field[i][j].heat || field[i][j].cold) 
+                sources[offset++] = k; 
     }
     #pragma omp single
     sources[offset] = -1;
     printf("FIRE INIT");
 }
 
-void calc_bug_temps(Hexagon** field, int L, int A, int sources, int j, float C)
+void calc_bug_temps(Hexagon** field, int L, int A, int* sources, int j, float C, int turn)
 {
     int iter;
-    int reader = 0;
 
-    for (iter = 0; iter < j; i++)
+    //iterates over bugs
+    for (iter = 0; iter < j; iter++)
     {
-        while (sources[reader] != -1)
-        {
-            CALCULATIONS
-            reader++;
-        }
+        calc_hex_temp(sources[iter], field, sources, L, C, turn);
+    }
+}
+
+void calc_hex_temp(int hex, Hexagon** field, int* sources, int L, float C, int turn)
+{
+    int p0[3];
+    int p1[3];
+    int reader = 0;
+    float contrib;
+
+    //iterates over all sources
+    ////Atualizar temp para o turno
+    if (!(field[hex/L][hex%L].lastUpdated < turn))
+        return;
+    field[hex/L][hex%L].temp = 0;
+    field[hex/L][hex%L].lastUpdated = turn;
+    while (sources[reader] != -1)
+    {
+        if(hex == reader)
+            continue;
+
+        even_r_to_cube(p0, hex/L, hex%L);
+        even_r_to_cube(p1, sources[reader]/L, sources[reader]%L);
+
+        if (field[reader/L][reader%L].cold)
+            contrib = -C/sq_cube_euclidian(p0, p1);
+        else
+            contrib = C/sq_cube_euclidian(p0, p1);
+        reader++;
+        
+        field[hex/L][hex%L].temp += contrib;
     }
 }
 
@@ -97,7 +127,7 @@ int main(int argc, char* argv[])
     int iter;
 
     int i, x, y;
-    
+
     int* sources;
     Hexagon** field;
 
@@ -107,7 +137,7 @@ int main(int argc, char* argv[])
     field = (Hexagon**) malloc(A*sizeof(Hexagon*));
     sources = (int*) malloc((L*A + 1)*sizeof(int));
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (i = 0; i < A; i++)
         field[i] = (Hexagon*) malloc(L*sizeof(Hexagon));
 
@@ -115,13 +145,13 @@ int main(int argc, char* argv[])
     printf("ASDASD");
 
     init_bugs(sources, field, j, L, A, &s);
-    
+
     for (iter = 0; iter < T; iter++)
     {
         spawn(field, L, A, pc, pf, nc, nf, sources, j);
     }
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (i = 0; i < A; i++)
         free(field[i]);
     free(field);

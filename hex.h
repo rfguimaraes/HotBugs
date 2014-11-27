@@ -11,7 +11,7 @@ typedef struct
     int heat, cold;
     unsigned int seed;
     int lastUpdated;
-    Temperature temperature;
+    Temperature temp;
     int whoWantsMore;
     Temperature wantValue;
 } Hexagon;
@@ -21,16 +21,16 @@ typedef struct
 q = x + (z + (z&1)) / 2
 r = z*/
 
-void cube_to_even_r(int x, int y, int z, int* i, int *j);
+void cube_to_even_r(int* p, int* i, int *j);
 
 /*# convert even-r offset to cube
 x = q - (r + (r&1)) / 2
 z = r
 y = -x-z*/
 
-void even_r_to_cube(int* x, int* y, int* z, int i, int j);
+void even_r_to_cube(int* p, int i, int j);
 
-float cube_euclidian(int x0, int y0, int z0, int x1, int y1, int z1);
+float sq_cube_euclidian(int* p0, int* p1);
 
 
 #endif
